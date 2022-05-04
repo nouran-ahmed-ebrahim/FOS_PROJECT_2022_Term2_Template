@@ -5,12 +5,30 @@
 //2022: NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
 
 void* lastAllocated = (void *)KERNEL_HEAP_START;
+int numOfAllocations = 0;
+
+struct allocation{
+	void* allocationAddres;
+	uint32 numOfPages;
+}allocations[40960];
+
+int findAllocationNumber(void* address)
+{
+	for(int i = 0 ;i< numOfAllocations ;i++)
+	{
+		if(allocations[i].allocationAddres == address)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
 
 int countEmptySize(void * address , uint32 wantedSize)
 {
 	uint32* pageTable = NULL;
 	uint32 numOfEmptyFrames = 0;
-	for(void * i = address ; i<= (void *)KERNEL_HEAP_MAX; i+=PAGE_SIZE)
+	for(void * i = address ; i< (void *)KERNEL_HEAP_MAX; i+=PAGE_SIZE)
 	{
 		get_page_table(ptr_page_directory,i,&pageTable);
         if(pageTable != NULL && (pageTable[PTX(i)] & 0x001))
@@ -19,6 +37,7 @@ int countEmptySize(void * address , uint32 wantedSize)
           }
 
         numOfEmptyFrames++;
+
         if(wantedSize == numOfEmptyFrames)
         {
         	return numOfEmptyFrames;
@@ -32,7 +51,7 @@ void* findSuitableEmptyBlock(void* startAddress, int numOfPages)
 {
 	uint32* pageTable = NULL;
 	uint32 blockSize;
-    for(void* i = startAddress ; i <= (void *)KERNEL_HEAP_MAX ;)
+    for(void* i = startAddress ; i < (void *)KERNEL_HEAP_MAX ;)
        {
     	  get_page_table(ptr_page_directory,i,&pageTable);
           if(pageTable != NULL && (pageTable[PTX(i)] & 0x001))
@@ -41,7 +60,6 @@ void* findSuitableEmptyBlock(void* startAddress, int numOfPages)
                continue;
             }
           blockSize = countEmptySize(i, numOfPages);
-          cprintf("%d\n", blockSize);
           if(numOfPages == blockSize)
           {
         	  return i;
@@ -51,12 +69,17 @@ void* findSuitableEmptyBlock(void* startAddress, int numOfPages)
 	return NULL;
 }
 
-void deallocate(void* allocationAdd,uint32 numOfAllocatedPages)
+void deallocate(uint32 allocationAdd,uint32 numOfAllocatedPages)
 {
+	struct frames_info *ptr_frame_info;
+	uint32 physical_address ;
 	for(uint32 i = 1 ;i<=numOfAllocatedPages ; i++,allocationAdd+=PAGE_SIZE)
 	{
-		unmap_frame(ptr_page_directory, allocationAdd);
-		//free_frame();
+		physical_address = kheap_physical_address(allocationAdd);
+		ptr_frame_info = to_frame_info(physical_address) ;
+
+		unmap_frame(ptr_page_directory, (void *)allocationAdd);
+		free_frame(ptr_frame_info);
 	}
 }
 
@@ -65,7 +88,7 @@ void* allocatePages(uint32 numOfPages, void* allocationAdd)
 	uint32 numOfAllocatedPages;
 	int ret;
 	int allocatedAll = 1;
-	Frame_Info *ptr_frame_info;
+	struct Frame_Info *ptr_frame_info;
 	void* i = allocationAdd;
 
 	for(uint32 j = 0 ; j <numOfPages ;i+=PAGE_SIZE, j++)
@@ -110,7 +133,6 @@ void* kmalloc(unsigned int size)
 	//refer to the project presentation and documentation for details
 	size = ROUNDUP(size,PAGE_SIZE);
     uint32 numOfPages = size / PAGE_SIZE;
-
 	void* allocationAdd = findSuitableEmptyBlock(lastAllocated, numOfPages);
 
 	if(allocationAdd == NULL)
@@ -124,7 +146,14 @@ void* kmalloc(unsigned int size)
 	}
 
 	uint32* ret =allocatePages(numOfPages, allocationAdd);
-  return ret;
+
+	if(ret != NULL)
+	{
+		allocations[numOfAllocations].allocationAddres = ret;
+		allocations[numOfAllocations].numOfPages = numOfPages;
+		numOfAllocations++;
+	}
+	return ret;
 
 
 	//TODO: [PROJECT 2022 - BONUS1] Implement a Kernel allocation strategy
@@ -141,11 +170,12 @@ void kfree(void* virtual_address)
 {
 	//TODO: [PROJECT 2022 - [2] Kernel Heap] kfree()
 	// Write your code here, remove the panic and write your code
-	panic("kfree() is not implemented yet...!!");
-
+	//panic("kfree() is not implemented yet...!!");
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
 
+	int allocationNumber = findAllocationNumber(virtual_address);
+	deallocate(virtual_address, allocations[allocationNumber].numOfPages);
 }
 
 unsigned int kheap_virtual_address(unsigned int physical_address)
@@ -166,12 +196,31 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 {
 	//TODO: [PROJECT 2022 - [4] Kernel Heap] kheap_physical_address()
 	// Write your code here, remove the panic and write your code
-	panic("kheap_physical_address() is not implemented yet...!!");
+	//panic("kheap_physical_address() is not implemented yet...!!");
 
 	//return the physical address corresponding to given virtual_address
 	//refer to the project presentation and documentation for details
 
 	//change this "return" according to your answer
-	return 0;
+	 uint32 * pageTable1;
+	 uint32 off;
+	 pageTable1 = NULL;
+	 get_page_table(ptr_page_directory,(const void *) virtual_address,&pageTable1);
+
+     if(pageTable1 !=NULL)
+	   {
+     	 uint32 frameNum = pageTable1[PTX(virtual_address)];
+     	 if(frameNum & PERM_PRESENT)
+    	 {
+    		 return -1;
+    	 }
+         frameNum >>= 12;
+    	 frameNum <<=12;
+
+    	 off = (virtual_address<<20);
+    	 off>>=20;
+ 	        return  frameNum + off  ;
+	   }
+	return -1;
 }
 
