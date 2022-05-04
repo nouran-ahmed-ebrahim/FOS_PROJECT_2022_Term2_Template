@@ -856,13 +856,10 @@ struct freeFramesCounters calculate_available_frames()
 			totalFreeUnBuffered++ ;
 	}
 
-
-
 	LIST_FOREACH(ptr, &modified_frame_list)
 	{
 		totalModified++ ;
 	}
-
 
 	struct freeFramesCounters counters ;
 	counters.freeBuffered = totalFreeBuffered ;

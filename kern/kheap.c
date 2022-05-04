@@ -5,23 +5,17 @@
 //2022: NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
 
 void* lastAllocated = (void *)KERNEL_HEAP_START;
-int numOfAllocations = 0;
+
 
 struct allocation{
 	void* allocationAddres;
+	struct Frame_Info* allocationframe;
 	uint32 numOfPages;
 }allocations[40960];
 
-int findAllocationNumber(void* address)
+int getAllocationNumber(void* address)
 {
-	for(int i = 0 ;i< numOfAllocations ;i++)
-	{
-		if(allocations[i].allocationAddres == address)
-		{
-			return i;
-		}
-	}
-	return -1;
+	return (address - (void *)KERNEL_HEAP_START)/PAGE_SIZE;
 }
 
 int countEmptySize(void * address , uint32 wantedSize)
@@ -69,22 +63,26 @@ void* findSuitableEmptyBlock(void* startAddress, int numOfPages)
 	return NULL;
 }
 
-void deallocate(uint32 allocationAdd,uint32 numOfAllocatedPages)
+void deallocate(void * address)
 {
-	struct frames_info *ptr_frame_info;
-	uint32 physical_address ;
-	for(uint32 i = 1 ;i<=numOfAllocatedPages ; i++,allocationAdd+=PAGE_SIZE)
-	{
-		physical_address = kheap_physical_address(allocationAdd);
-		ptr_frame_info = to_frame_info(physical_address) ;
+   int allocationIdx = getAllocationNumber(address);
 
-		unmap_frame(ptr_page_directory, (void *)allocationAdd);
-		free_frame(ptr_frame_info);
-	}
+   int lastAllocation = allocations[allocationIdx].numOfPages + allocationIdx;
+   for(int i = allocationIdx ; i < lastAllocation ;i++)
+   {
+	   unmap_frame(ptr_page_directory, allocations[i].allocationAddres);
+	   free_frame(allocations[i].allocationframe);
+
+	   allocations[allocationIdx].allocationAddres = NULL;
+	   allocations[allocationIdx].allocationframe = NULL;
+	   allocations[allocationIdx].numOfPages = 0;
+   }
+
 }
 
 void* allocatePages(uint32 numOfPages, void* allocationAdd)
 {
+	int allocationIdx;
 	uint32 numOfAllocatedPages;
 	int ret;
 	int allocatedAll = 1;
@@ -106,6 +104,13 @@ void* allocatePages(uint32 numOfPages, void* allocationAdd)
 			  allocatedAll = 0;
 			  break;
 		   }
+		allocationIdx = getAllocationNumber(i);
+		allocations[allocationIdx].allocationAddres = i;
+		allocations[allocationIdx].allocationframe = ptr_frame_info;
+		if(j == 0)
+		{
+			allocations[allocationIdx].numOfPages = numOfPages;
+		}
 	}
 
 	if(allocatedAll == 0)
@@ -113,7 +118,7 @@ void* allocatePages(uint32 numOfPages, void* allocationAdd)
 		numOfAllocatedPages = (i - allocationAdd )/PAGE_SIZE ;
 		if(numOfAllocatedPages !=0)
 		{
-		 deallocate(allocationAdd, numOfAllocatedPages);
+		 deallocate(allocationAdd);
 		}
 		return NULL;
 	}
@@ -145,15 +150,9 @@ void* kmalloc(unsigned int size)
 	    return NULL;
 	}
 
-	uint32* ret =allocatePages(numOfPages, allocationAdd);
+	return allocatePages(numOfPages, allocationAdd);
 
-	if(ret != NULL)
-	{
-		allocations[numOfAllocations].allocationAddres = ret;
-		allocations[numOfAllocations].numOfPages = numOfPages;
-		numOfAllocations++;
-	}
-	return ret;
+
 
 
 	//TODO: [PROJECT 2022 - BONUS1] Implement a Kernel allocation strategy
@@ -173,9 +172,8 @@ void kfree(void* virtual_address)
 	//panic("kfree() is not implemented yet...!!");
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
-
-	int allocationNumber = findAllocationNumber(virtual_address);
-	deallocate(virtual_address, allocations[allocationNumber].numOfPages);
+    //cprintf("%x\n",virtual_address);
+	deallocate(virtual_address);cprintf("bb");
 }
 
 unsigned int kheap_virtual_address(unsigned int physical_address)
