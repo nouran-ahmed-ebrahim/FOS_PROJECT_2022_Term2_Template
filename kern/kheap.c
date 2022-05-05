@@ -126,26 +126,25 @@ void* kmalloc(unsigned int size)
 	//NOTE: Allocation using NEXTFIT strategy
 	//NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
 	//refer to the project presentation and documentation for details
-//	cprintf("aaaaaaaaa\n");
+
 	size = ROUNDUP(size,PAGE_SIZE);
     uint32 numOfPages = size / PAGE_SIZE;
     void* ret ;
 	int allocationIdx;
 	void* allocationAdd = findSuitableEmptyBlock(lastAllocated, numOfPages);
 
-//	cprintf("a\n");
 	if(allocationAdd == NULL)
 	{
 		allocationAdd = findSuitableEmptyBlock((uint32*)KERNEL_HEAP_START, numOfPages);
 	}
-//    cprintf("a\n");
+
 	if(allocationAdd == NULL)
 	{
 	    return NULL;
 	}
-//	cprintf("a\n");
+
     ret =allocatePages(numOfPages, allocationAdd);
-//    cprintf("a\n");
+
    	if(ret != NULL)
 	  {
    	    allocationIdx = getAllocationNumber(ret);
@@ -199,25 +198,6 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 	//refer to the project presentation and documentation for details
 
 	//change this "return" according to your answer
-	 uint32 * pageTable1;
-	 uint32 off;
-	 pageTable1 = NULL;
-	 get_page_table(ptr_page_directory,(const void *) virtual_address,&pageTable1);
 
-     if(pageTable1 !=NULL)
-	   {
-     	 uint32 frameNum = pageTable1[PTX(virtual_address)];
-     	 if(frameNum & PERM_PRESENT)
-    	 {
-    		 return -1;
-    	 }
-         frameNum >>= 12;
-    	 frameNum <<=12;
-
-    	 off = (virtual_address<<20);
-    	 off>>=20;
- 	        return  frameNum + off  ;
-	   }
-	return -1;
 }
 
