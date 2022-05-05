@@ -9,7 +9,6 @@ void* lastAllocated = (void *)KERNEL_HEAP_START;
 
 struct allocation{
 	void* allocationAddres;
-	struct Frame_Info* allocationframe;
 	uint32 numOfPages;
 }allocations[40960];
 
@@ -22,10 +21,11 @@ int countEmptySize(void * address , uint32 wantedSize)
 {
 	uint32* pageTable = NULL;
 	uint32 numOfEmptyFrames = 0;
+	struct Frame_Info * frameInfo;
 	for(void * i = address ; i< (void *)KERNEL_HEAP_MAX; i+=PAGE_SIZE)
 	{
-		get_page_table(ptr_page_directory,i,&pageTable);
-        if(pageTable != NULL && (pageTable[PTX(i)] & 0x001))
+		  frameInfo = get_frame_info(ptr_page_directory, i, &pageTable);
+        if(frameInfo != NULL)
           {
         	return numOfEmptyFrames;
           }
@@ -44,16 +44,19 @@ int countEmptySize(void * address , uint32 wantedSize)
 void* findSuitableEmptyBlock(void* startAddress, int numOfPages)
 {
 	uint32* pageTable = NULL;
+	struct Frame_Info * frameInfo;
 	uint32 blockSize;
     for(void* i = startAddress ; i < (void *)KERNEL_HEAP_MAX ;)
        {
-    	  get_page_table(ptr_page_directory,i,&pageTable);
-          if(pageTable != NULL && (pageTable[PTX(i)] & 0x001))
+       	  frameInfo = get_frame_info(ptr_page_directory, i, &pageTable);
+          if(frameInfo != NULL)
             {
         	   i+=PAGE_SIZE;
                continue;
             }
+
           blockSize = countEmptySize(i, numOfPages);
+
           if(numOfPages == blockSize)
           {
         	  return i;
@@ -67,17 +70,11 @@ void deallocate(void * address)
 {
    int allocationIdx = getAllocationNumber(address);
 
-   int lastAllocation = allocations[allocationIdx].numOfPages + allocationIdx;
-   for(int i = allocationIdx ; i < lastAllocation ;i++)
+   int size = allocations[allocationIdx].numOfPages ;
+   for(int i = 0 ; i < size ;i++, address+=PAGE_SIZE)
    {
-	   unmap_frame(ptr_page_directory, allocations[i].allocationAddres);
-	   free_frame(allocations[i].allocationframe);
-
-	   allocations[allocationIdx].allocationAddres = NULL;
-	   allocations[allocationIdx].allocationframe = NULL;
-	   allocations[allocationIdx].numOfPages = 0;
+	   unmap_frame(ptr_page_directory,address);
    }
-
 }
 
 void* allocatePages(uint32 numOfPages, void* allocationAdd)
@@ -104,13 +101,6 @@ void* allocatePages(uint32 numOfPages, void* allocationAdd)
 			  allocatedAll = 0;
 			  break;
 		   }
-		allocationIdx = getAllocationNumber(i);
-		allocations[allocationIdx].allocationAddres = i;
-		allocations[allocationIdx].allocationframe = ptr_frame_info;
-		if(j == 0)
-		{
-			allocations[allocationIdx].numOfPages = numOfPages;
-		}
 	}
 
 	if(allocatedAll == 0)
@@ -123,7 +113,7 @@ void* allocatePages(uint32 numOfPages, void* allocationAdd)
 		return NULL;
 	}
 
-	lastAllocated += PAGE_SIZE * numOfPages;
+	lastAllocated = i;
 	return (allocationAdd);
 }
 
@@ -136,24 +126,33 @@ void* kmalloc(unsigned int size)
 	//NOTE: Allocation using NEXTFIT strategy
 	//NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
 	//refer to the project presentation and documentation for details
+//	cprintf("aaaaaaaaa\n");
 	size = ROUNDUP(size,PAGE_SIZE);
     uint32 numOfPages = size / PAGE_SIZE;
+    void* ret ;
+	int allocationIdx;
 	void* allocationAdd = findSuitableEmptyBlock(lastAllocated, numOfPages);
 
+//	cprintf("a\n");
 	if(allocationAdd == NULL)
 	{
 		allocationAdd = findSuitableEmptyBlock((uint32*)KERNEL_HEAP_START, numOfPages);
 	}
-
+//    cprintf("a\n");
 	if(allocationAdd == NULL)
 	{
 	    return NULL;
 	}
-
-	return allocatePages(numOfPages, allocationAdd);
-
-
-
+//	cprintf("a\n");
+    ret =allocatePages(numOfPages, allocationAdd);
+//    cprintf("a\n");
+   	if(ret != NULL)
+	  {
+   	    allocationIdx = getAllocationNumber(ret);
+   		allocations[allocationIdx].allocationAddres = ret;
+		allocations[allocationIdx].numOfPages = numOfPages;
+	  }
+	  return ret;
 
 	//TODO: [PROJECT 2022 - BONUS1] Implement a Kernel allocation strategy
 	// Instead of the Next allocation/deallocation, implement
@@ -173,7 +172,7 @@ void kfree(void* virtual_address)
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
     //cprintf("%x\n",virtual_address);
-	deallocate(virtual_address);cprintf("bb");
+	deallocate(virtual_address);
 }
 
 unsigned int kheap_virtual_address(unsigned int physical_address)
