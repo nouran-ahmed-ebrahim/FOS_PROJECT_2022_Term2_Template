@@ -63,7 +63,7 @@ int countEmptySizeBestFit(void * address , uint32 wantedSize)
 	return numOfEmptyFrames;
 }
 
-void* findSuitableEmptyBlock(void* startAddress, int numOfPages)
+void* findSuitableEmptyBlockNextFit(void* startAddress, int numOfPages)
 {
 	uint32* pageTable = NULL;
 	struct Frame_Info * frameInfo;
@@ -78,24 +78,40 @@ void* findSuitableEmptyBlock(void* startAddress, int numOfPages)
                continue;
             }
 
-          if(isKHeapPlacementStrategyNEXTFIT())
-            {
         	  blockSize = countEmptySizeNextFit(i, numOfPages);
               if(numOfPages == blockSize)
                 {
             	  returnedAddress = i;
             	  break;
                 }
-             }
-          else
-       	    {
+
+           i+=PAGE_SIZE * blockSize;
+        }
+	return returnedAddress;
+}
+
+void* findSuitableEmptyBlockBestFit(void* startAddress, int numOfPages)
+{
+	uint32* pageTable = NULL;
+	struct Frame_Info * frameInfo;
+	uint32 blockSize, prevSize = 100000000;
+	void* returnedAddress = NULL;
+    for(void* i = startAddress ; i < (void *)KERNEL_HEAP_MAX ;)
+       {
+       	  frameInfo = get_frame_info(ptr_page_directory, i, &pageTable);
+          if(frameInfo != NULL)
+            {
+        	   i+=PAGE_SIZE;
+               continue;
+            }
+
         	  blockSize = countEmptySizeBestFit(i, numOfPages);
               if(numOfPages <= blockSize && blockSize < prevSize)
                 {
             	  prevSize = blockSize;
             	  returnedAddress = i;
                 }
-       	    }
+
            i+=PAGE_SIZE * blockSize;
         }
 	return returnedAddress;
@@ -162,12 +178,19 @@ void* kmalloc(unsigned int size)
 	//cprintf("%d\n",size);
 	if(isKHeapPlacementStrategyNEXTFIT())
 	{
-	  allocationAdd = findSuitableEmptyBlock(lastAllocated, numOfPages);
+	  allocationAdd = findSuitableEmptyBlockNextFit(lastAllocated, numOfPages);
 	}
 
 	if(allocationAdd == NULL)
 	{
-		allocationAdd = findSuitableEmptyBlock((uint32*)KERNEL_HEAP_START, numOfPages);
+		if(isKHeapPlacementStrategyNEXTFIT())
+		{
+		  allocationAdd = findSuitableEmptyBlockNextFit((uint32*)KERNEL_HEAP_START, numOfPages);
+		}
+		else
+		{
+			allocationAdd = findSuitableEmptyBlockBestFit((uint32*)KERNEL_HEAP_START, numOfPages);
+		}
 	}
 
 	if(allocationAdd == NULL)
