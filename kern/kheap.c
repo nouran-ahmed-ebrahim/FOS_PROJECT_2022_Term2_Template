@@ -230,12 +230,29 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 {
 	//TODO: [PROJECT 2022 - [3] Kernel Heap] kheap_virtual_address()
 	// Write your code here, remove the panic and write your code
-	panic("kheap_virtual_address() is not implemented yet...!!");
-
 	//return the virtual address corresponding to given physical_address
 	//refer to the project presentation and documentation for details
-
 	//change this "return" according to your answer
+
+	uint32 Frame_num = (physical_address >> 12 );
+	uint32 *ptr_page_table = NULL;
+	uint32 table_entry;
+	for(uint32 i=KERNEL_HEAP_START ; i<KERNEL_HEAP_MAX; i=i+PAGE_SIZE)
+	   {
+	     get_page_table(ptr_page_directory,(uint32*)i ,&ptr_page_table);
+		 if (ptr_page_table != NULL)
+			{
+			  table_entry = ptr_page_table [PTX(i)];
+			  if((table_entry&(~PERM_PRESENT))!=(table_entry))
+				{
+				  uint32 frame = table_entry >> 12;
+					if (frame ==Frame_num )
+			    	   {
+					     return (i);
+		               }
+				}
+			}
+	     }
 
 	return 0;
 }
@@ -244,12 +261,33 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 {
 	//TODO: [PROJECT 2022 - [4] Kernel Heap] kheap_physical_address()
 	// Write your code here, remove the panic and write your code
-	panic("kheap_physical_address() is not implemented yet...!!");
-
+	//panic("kheap_physical_address() is not implemented yet...!!");
 	//return the physical address corresponding to given virtual_address
 	//refer to the project presentation and documentation for details
-
 	//change this "return" according to your answer
+	 if(virtual_address< KERNEL_HEAP_START || virtual_address > KERNEL_HEAP_MAX)
+	 {
+		 return 0;
+	 }
 
+	 uint32 *cptr = NULL;
+	 get_page_table(ptr_page_directory,(uint32*)virtual_address,&cptr);
+	 uint32 table_entry;
+	 uint32 physical_address;
+	 if (cptr != NULL)
+	    {
+	      uint32 table_entry = cptr [PTX(virtual_address)];
+	      if((table_entry&(~PERM_PRESENT))!=(table_entry))
+	        {
+              uint32 frameNum = table_entry >> 12;
+	                 frameNum =  frameNum << 12;
+              uint32 x =virtual_address << 20;
+	                 x = x >> 20;
+	          physical_address = frameNum + x ;
+	          return (physical_address);
+   	    }
+
+ }
+	return 0;
 }
 

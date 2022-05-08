@@ -1805,7 +1805,6 @@ int test_kheap_virt_addr()
 		if ((sys_calculate_free_frames() - freeFrames) != 6*Mega/4096) panic("Wrong kfree: pages in memory are not freed correctly");
 	}
 
-
 	//test kheap_virtual_address after kmalloc and kfree [40%]
 	{
 		uint32 va;
@@ -1823,15 +1822,18 @@ int test_kheap_virt_addr()
 			}
 
 		}
+
 		//next frames until 6 MB
 		for (i = startIndex + 4*Mega/PAGE_SIZE; i < startIndex + (7*Mega + 16*kilo)/PAGE_SIZE; ++i)
 		{
+
 			uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
 			if (retrievedVA != KERNEL_HEAP_START + i*PAGE_SIZE)
 			{
 				panic("Wrong kheap_virtual_address");
 			}
 		}
+
 		//frames of 6 MB
 		for (i = startIndex + (7*Mega + 16*kilo)/PAGE_SIZE; i < startIndex + (13*Mega + 16*kilo)/PAGE_SIZE; ++i)
 		{
