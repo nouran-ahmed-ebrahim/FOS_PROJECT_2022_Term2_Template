@@ -6,18 +6,21 @@
 
 void* lastAllocated = (void *)KERNEL_HEAP_START;
 
-
-struct allocation{
-	void* allocationAddres;
-	uint32 numOfPages;
-}allocations[40960];
+int16 allocations[40960];
 
 int getAllocationNumber(void* address)
 {
 	return (address - (void *)KERNEL_HEAP_START)/PAGE_SIZE;
 }
 
-int countEmptySize(void * address , uint32 wantedSize)
+void addAllocation(void* address, int16 numOfPages)
+{
+	  int allocationIdx;
+	  allocationIdx = getAllocationNumber(address);
+	  allocations[allocationIdx] = numOfPages;
+}
+
+int countEmptySizeNextFit(void * address , uint32 wantedSize)
 {
 	uint32* pageTable = NULL;
 	uint32 numOfEmptyFrames = 0;
@@ -41,11 +44,31 @@ int countEmptySize(void * address , uint32 wantedSize)
 	return numOfEmptyFrames;
 }
 
+int countEmptySizeBestFit(void * address , uint32 wantedSize)
+{
+	uint32* pageTable = NULL;
+	uint32 numOfEmptyFrames = 0;
+	struct Frame_Info * frameInfo;
+	for(void * i = address ; i< (void *)KERNEL_HEAP_MAX; i+=PAGE_SIZE)
+	{
+		  frameInfo = get_frame_info(ptr_page_directory, i, &pageTable);
+          if(frameInfo != NULL)
+          {
+        	return numOfEmptyFrames;
+          }
+
+        numOfEmptyFrames++;
+	}
+
+	return numOfEmptyFrames;
+}
+
 void* findSuitableEmptyBlock(void* startAddress, int numOfPages)
 {
 	uint32* pageTable = NULL;
 	struct Frame_Info * frameInfo;
-	uint32 blockSize;
+	uint32 blockSize, prevSize = 100000000;
+	void* returnedAddress = NULL;
     for(void* i = startAddress ; i < (void *)KERNEL_HEAP_MAX ;)
        {
        	  frameInfo = get_frame_info(ptr_page_directory, i, &pageTable);
@@ -55,34 +78,36 @@ void* findSuitableEmptyBlock(void* startAddress, int numOfPages)
                continue;
             }
 
-          blockSize = countEmptySize(i, numOfPages);
-
-          if(numOfPages == blockSize)
-          {
-        	  return i;
-          }
-       	  i+=PAGE_SIZE * blockSize;
-       }
-	return NULL;
+          if(isKHeapPlacementStrategyNEXTFIT())
+            {
+        	  blockSize = countEmptySizeNextFit(i, numOfPages);
+              if(numOfPages == blockSize)
+                {
+            	  returnedAddress = i;
+            	  break;
+                }
+             }
+          else
+       	    {
+        	  blockSize = countEmptySizeBestFit(i, numOfPages);
+              if(numOfPages <= blockSize && blockSize < prevSize)
+                {
+            	  prevSize = blockSize;
+            	  returnedAddress = i;
+                }
+       	    }
+           i+=PAGE_SIZE * blockSize;
+        }
+	return returnedAddress;
 }
 
-void deallocate(void * address)
-{
-   int allocationIdx = getAllocationNumber(address);
-
-   int size = allocations[allocationIdx].numOfPages ;
-   for(int i = 0 ; i < size ;i++, address+=PAGE_SIZE)
-   {
-	   unmap_frame(ptr_page_directory,address);
-   }
-}
 
 void* allocatePages(uint32 numOfPages, void* allocationAdd)
 {
 	int allocationIdx;
 	uint32 numOfAllocatedPages;
 	int ret;
-	int allocatedAll = 1;
+	int isAllAllocated = 1;
 	struct Frame_Info *ptr_frame_info;
 	void* i = allocationAdd;
 
@@ -92,28 +117,30 @@ void* allocatePages(uint32 numOfPages, void* allocationAdd)
 		if (ret == E_NO_MEM)
 		{
 			i-=PAGE_SIZE;
-			allocatedAll = 0;
+			isAllAllocated = 0;
 	        break;
 		}
 		ret = map_frame(ptr_page_directory, ptr_frame_info, i, (0x002 | 0x0001));
 		if (ret == E_NO_MEM)
 		   {
-			  allocatedAll = 0;
+			  isAllAllocated = 0;
 			  break;
 		   }
 	}
 
-	if(allocatedAll == 0)
+	if(isAllAllocated == 0)
 	{
 		numOfAllocatedPages = (i - allocationAdd )/PAGE_SIZE ;
 		if(numOfAllocatedPages !=0)
 		{
-		 deallocate(allocationAdd);
+			addAllocation(allocationAdd, numOfAllocatedPages);
+			kfree(allocationAdd);
 		}
 		return NULL;
 	}
 
 	lastAllocated = i;
+	addAllocation(allocationAdd, numOfPages);
 	return (allocationAdd);
 }
 
@@ -129,9 +156,14 @@ void* kmalloc(unsigned int size)
 
 	size = ROUNDUP(size,PAGE_SIZE);
     uint32 numOfPages = size / PAGE_SIZE;
-    void* ret ;
+    void *allocationAdd = NULL ;
 	int allocationIdx;
-	void* allocationAdd = findSuitableEmptyBlock(lastAllocated, numOfPages);
+
+	//cprintf("%d\n",size);
+	if(isKHeapPlacementStrategyNEXTFIT())
+	{
+	  allocationAdd = findSuitableEmptyBlock(lastAllocated, numOfPages);
+	}
 
 	if(allocationAdd == NULL)
 	{
@@ -143,15 +175,7 @@ void* kmalloc(unsigned int size)
 	    return NULL;
 	}
 
-    ret =allocatePages(numOfPages, allocationAdd);
-
-   	if(ret != NULL)
-	  {
-   	    allocationIdx = getAllocationNumber(ret);
-   		allocations[allocationIdx].allocationAddres = ret;
-		allocations[allocationIdx].numOfPages = numOfPages;
-	  }
-	  return ret;
+    return allocatePages(numOfPages, allocationAdd);
 
 	//TODO: [PROJECT 2022 - BONUS1] Implement a Kernel allocation strategy
 	// Instead of the Next allocation/deallocation, implement
@@ -160,7 +184,6 @@ void* kmalloc(unsigned int size)
 	// and "isKHeapPlacementStrategyNEXTFIT() ..."
 	//functions to check the current strategy
 	//change this "return" according to your answer
-
 }
 
 void kfree(void* virtual_address)
@@ -171,7 +194,13 @@ void kfree(void* virtual_address)
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
     //cprintf("%x\n",virtual_address);
-	deallocate(virtual_address);
+	   int allocationIdx = getAllocationNumber(virtual_address);
+
+	   int size = allocations[allocationIdx] ;
+	   for(int i = 0 ; i < size ;i++, virtual_address+=PAGE_SIZE)
+	   {
+		   unmap_frame(ptr_page_directory,virtual_address);
+	   }
 }
 
 unsigned int kheap_virtual_address(unsigned int physical_address)
@@ -192,7 +221,7 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 {
 	//TODO: [PROJECT 2022 - [4] Kernel Heap] kheap_physical_address()
 	// Write your code here, remove the panic and write your code
-	//panic("kheap_physical_address() is not implemented yet...!!");
+	panic("kheap_physical_address() is not implemented yet...!!");
 
 	//return the physical address corresponding to given virtual_address
 	//refer to the project presentation and documentation for details
