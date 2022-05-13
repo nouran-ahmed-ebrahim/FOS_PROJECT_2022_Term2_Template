@@ -6,7 +6,7 @@
 
 void* lastAllocated = (void *)KERNEL_HEAP_START;
 
-int16 allocations[40960];
+int16 userAllocations[40960];
 
 int getAllocationNumber(void* address)
 {
@@ -17,7 +17,7 @@ void addAllocation(void* address, int16 numOfPages)
 {
 	  int allocationIdx;
 	  allocationIdx = getAllocationNumber(address);
-	  allocations[allocationIdx] = numOfPages;
+	  userAllocations[allocationIdx] = numOfPages;
 }
 
 int countEmptySizeNextFit(void * address , uint32 wantedSize)
@@ -170,36 +170,6 @@ void* kmalloc(unsigned int size)
 	//NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
 	//refer to the project presentation and documentation for details
 
-	size = ROUNDUP(size,PAGE_SIZE);
-    uint32 numOfPages = size / PAGE_SIZE;
-    void *allocationAdd = NULL ;
-	int allocationIdx;
-
-	//cprintf("%d\n",size);
-	if(isKHeapPlacementStrategyNEXTFIT())
-	{
-	  allocationAdd = findSuitableEmptyBlockNextFit(lastAllocated, numOfPages);
-	}
-
-	if(allocationAdd == NULL)
-	{
-		if(isKHeapPlacementStrategyNEXTFIT())
-		{
-		  allocationAdd = findSuitableEmptyBlockNextFit((uint32*)KERNEL_HEAP_START, numOfPages);
-		}
-		else
-		{
-			allocationAdd = findSuitableEmptyBlockBestFit((uint32*)KERNEL_HEAP_START, numOfPages);
-		}
-	}
-
-	if(allocationAdd == NULL)
-	{
-	    return NULL;
-	}
-
-    return allocatePages(numOfPages, allocationAdd);
-
 	//TODO: [PROJECT 2022 - BONUS1] Implement a Kernel allocation strategy
 	// Instead of the Next allocation/deallocation, implement
 	// BEST FIT strategy
@@ -207,6 +177,38 @@ void* kmalloc(unsigned int size)
 	// and "isKHeapPlacementStrategyNEXTFIT() ..."
 	//functions to check the current strategy
 	//change this "return" according to your answer
+	size = ROUNDUP(size,PAGE_SIZE);
+	    uint32 numOfPages = size / PAGE_SIZE;
+	    void *allocationAdd = NULL ;
+		int allocationIdx;
+
+		//cprintf("%d\n",size);
+		if(isKHeapPlacementStrategyNEXTFIT())
+		{
+		  allocationAdd = findSuitableEmptyBlockNextFit(lastAllocated, numOfPages);
+		}
+
+		if(allocationAdd == NULL)
+		{
+			if(isKHeapPlacementStrategyNEXTFIT())
+			{
+			  allocationAdd = findSuitableEmptyBlockNextFit((uint32*)KERNEL_HEAP_START, numOfPages);
+			}
+			else
+			{
+				allocationAdd = findSuitableEmptyBlockBestFit((uint32*)KERNEL_HEAP_START, numOfPages);
+			}
+		}
+
+		if(allocationAdd == NULL)
+		{
+		    return NULL;
+		}
+
+
+	    return allocatePages(numOfPages, allocationAdd);
+
+
 }
 
 void kfree(void* virtual_address)
@@ -219,7 +221,7 @@ void kfree(void* virtual_address)
     //cprintf("%x\n",virtual_address);
 	   int allocationIdx = getAllocationNumber(virtual_address);
 
-	   int size = allocations[allocationIdx] ;
+	   int size = userAllocations[allocationIdx] ;
 	   for(int i = 0 ; i < size ;i++, virtual_address+=PAGE_SIZE)
 	   {
 		   unmap_frame(ptr_page_directory,virtual_address);

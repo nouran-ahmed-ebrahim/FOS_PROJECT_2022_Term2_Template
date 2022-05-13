@@ -726,14 +726,22 @@ int loadtime_map_frame(uint32 *ptr_page_directory, struct Frame_Info *ptr_frame_
 //======================================================
 
 // [10] allocateMem
+
 void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 {
+	int check;
+	//pages = size/PAGE_SIZE;
 	//TODO: [PROJECT 2022 - [10] User Heap] allocateMem() [Kernel Side]
 	// Write your code here, remove the panic and write your code
-	panic("allocateMem() is not implemented yet...!!");
+	//panic("allocateMem() is not implemented yet...!!");
 
 	//This function should allocate ALL pages of the required range in the PAGE FILE
 	//and allocate NOTHING in the main memory
+	for(int i = 0 ; i< size;i++)
+	{
+		check = pf_add_empty_env_page(e,virtual_address,1);
+		virtual_address+=PAGE_SIZE;
+	}
 
 }
 
@@ -856,10 +864,13 @@ struct freeFramesCounters calculate_available_frames()
 			totalFreeUnBuffered++ ;
 	}
 
+
+
 	LIST_FOREACH(ptr, &modified_frame_list)
 	{
 		totalModified++ ;
 	}
+
 
 	struct freeFramesCounters counters ;
 	counters.freeBuffered = totalFreeBuffered ;

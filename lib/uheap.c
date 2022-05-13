@@ -18,8 +18,93 @@
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
 
+int num_of_pages = (USER_HEAP_MAX-USER_HEAP_START)/PAGE_SIZE;
+int userHeap[131072];
+int lastAllocated = 0;
+
+int Get_Index(void* Address)
+{
+	int index ;
+	index = (Address-(void *)USER_HEAP_START)/PAGE_SIZE;
+	return index;
+}
+
+void* Get_add (int index)
+{
+	void* add ;
+	add = (index*PAGE_SIZE)+(void *)USER_HEAP_START;
+	return add;
+}
 void* malloc(uint32 size)
 {
+	void* virtual_address;
+	int pages;
+	int count = 0;
+	int counter_of_userHeap = 0;
+	size = ROUNDUP(size,PAGE_SIZE);
+	pages = size/PAGE_SIZE;
+	bool once = 0;
+	//uint32* ptrCount = 0;
+	for(int i = lastAllocated; i<=num_of_pages;i++)
+	{
+
+		if(userHeap[i] != 0)
+		{
+			i+=userHeap[i]-1;
+			continue;
+		}
+
+		for(int j = i ; j < pages+i ; j++)
+		{
+			int count = 0;
+			if(userHeap[j]== 0)
+			{
+				count++;
+			}else {
+				i+=userHeap[j];
+				break;
+			}
+		}
+		if(count == pages)
+		{
+			userHeap[i]=pages;
+			i+=pages-1;
+			virtual_address = Get_add(i);
+			sys_allocateMem((uint32)virtual_address, pages);
+			break;
+		}
+		counter_of_userHeap+=i;
+		if((i == 131072) & (once == 0))
+		{
+			i = 0;
+			once = 1;
+
+		}
+	}
+
+	/*uint32* pageTable = NULL;
+	struct Frame_Info * frameInfo;
+	uint32 blockSize, prevSize = 100000000;
+	void* returnedAddress = NULL;
+	for(void* i = startAddress ; i < (void *)USER_HEAP_MAX ;)
+	   {
+	     frameInfo = get_frame_info(ptr_page_directory, i, &pageTable);
+	     if(frameInfo != NULL)
+	       {
+	         i+=PAGE_SIZE;
+	         continue;
+	       }
+
+	     blockSize = countEmptySizeNextFit(i, numOfPages);
+	     if(numOfPages == blockSize)
+	       {
+	         returnedAddress = i;
+	         break;
+	       }
+
+	     i+=PAGE_SIZE * blockSize;
+	    }
+    return returnedAddress;*/
 	//TODO: [PROJECT 2022 - [9] User Heap malloc()] [User Side]
 	// Write your code here, remove the panic and write your code
 	panic("malloc() is not implemented yet...!!");
@@ -40,7 +125,7 @@ void* malloc(uint32 size)
 	//sys_isUHeapPlacementStrategyBESTFIT() for the bonus
 	//to check the current strategy
 
-	return NULL;
+	return virtual_address;
 }
 
 void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
