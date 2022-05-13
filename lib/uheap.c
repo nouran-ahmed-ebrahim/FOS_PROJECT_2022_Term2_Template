@@ -71,7 +71,8 @@ void* malloc(uint32 size)
 			virtual_address = Get_add(i);
 			sys_allocateMem((uint32)virtual_address, pages);
 			userHeap[i]=pages;
-			i+=pages-1;
+			i+=pages;
+			lastAllocated = i;
 			break;
 		}
 		counter_of_userHeap+=i;
@@ -86,7 +87,7 @@ void* malloc(uint32 size)
 	return virtual_address;
 	//TODO: [PROJECT 2022 - [9] User Heap malloc()] [User Side]
 	// Write your code here, remove the panic and write your code
-	panic("malloc() is not implemented yet...!!");
+	//panic("malloc() is not implemented yet...!!");
 
 	// Steps:
 	//	1) Implement NEXT FIT strategy to search the heap for suitable space
