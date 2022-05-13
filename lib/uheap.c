@@ -54,23 +54,24 @@ void* malloc(uint32 size)
 			continue;
 		}
 
+		int count = 0;
 		for(int j = i ; j < pages+i ; j++)
 		{
-			int count = 0;
+
 			if(userHeap[j]== 0)
 			{
 				count++;
 			}else {
-				i+=userHeap[j];
+				i+=userHeap[j]-1;
 				break;
 			}
 		}
 		if(count == pages)
 		{
-			userHeap[i]=pages;
-			i+=pages-1;
 			virtual_address = Get_add(i);
 			sys_allocateMem((uint32)virtual_address, pages);
+			userHeap[i]=pages;
+			i+=pages-1;
 			break;
 		}
 		counter_of_userHeap+=i;
@@ -82,29 +83,7 @@ void* malloc(uint32 size)
 		}
 	}
 
-	/*uint32* pageTable = NULL;
-	struct Frame_Info * frameInfo;
-	uint32 blockSize, prevSize = 100000000;
-	void* returnedAddress = NULL;
-	for(void* i = startAddress ; i < (void *)USER_HEAP_MAX ;)
-	   {
-	     frameInfo = get_frame_info(ptr_page_directory, i, &pageTable);
-	     if(frameInfo != NULL)
-	       {
-	         i+=PAGE_SIZE;
-	         continue;
-	       }
-
-	     blockSize = countEmptySizeNextFit(i, numOfPages);
-	     if(numOfPages == blockSize)
-	       {
-	         returnedAddress = i;
-	         break;
-	       }
-
-	     i+=PAGE_SIZE * blockSize;
-	    }
-    return returnedAddress;*/
+	return virtual_address;
 	//TODO: [PROJECT 2022 - [9] User Heap malloc()] [User Side]
 	// Write your code here, remove the panic and write your code
 	panic("malloc() is not implemented yet...!!");
@@ -125,7 +104,6 @@ void* malloc(uint32 size)
 	//sys_isUHeapPlacementStrategyBESTFIT() for the bonus
 	//to check the current strategy
 
-	return virtual_address;
 }
 
 void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
