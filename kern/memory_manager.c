@@ -540,25 +540,23 @@ void * create_page_table(uint32 *ptr_page_directory, const uint32 virtual_addres
 
 	//Use kmalloc() to create a new page TABLE for the given virtual address,
 	//Use CONSTRUCT_ENTRY() to build the table entry then link it to the given directory
-	//return the address of the created table
+	//return the address of the crea;ted table
 	//REMEMBER TO:
 	//	a.	clear all entries (as it may contain garbage data)
 	//	b.	clear the TLB cache (using "tlbflush()")
 	//change this "return" according to your answer
 
-	uint32* new_pagetable= kmalloc(PAGE_SIZE);
+	uint32 *ptr_page_tab = kmalloc(PAGE_SIZE);
 
-	for(int i=0;i< 1024;i++){
-		new_pagetable[i]=0;
-	} // set all page table enteries to 0
+	 if (ptr_page_tab != NULL){
+		uint32 physical_address = kheap_physical_address((unsigned int)ptr_page_tab);
+		ptr_page_directory[PDX(virtual_address)] = CONSTRUCT_ENTRY(physical_address, PERM_PRESENT | PERM_USER | PERM_WRITEABLE);
 
-	int PA= kheap_physical_address((uint32)new_pagetable);
-
-	ptr_page_directory[PDX(virtual_address)]=CONSTRUCT_ENTRY(PA,PERM_PRESENT | PERM_WRITEABLE|PERM_USER);
+		memset(ptr_page_tab, 0, PAGE_SIZE);
 		tlbflush();
+	}
 
-		return (void*)new_pagetable;
-	return NULL;
+	return ptr_page_tab;
 }
 
 
