@@ -444,7 +444,6 @@ void table_fault_handler(struct Env * curenv, uint32 fault_va)
 	}
 
 }
-
 void Repalacement__(struct Env * curenv, uint32 fault_va){
 	int PageWsSize = curenv->page_WS_max_size ;
 	uint32 vict_va;
@@ -549,55 +548,54 @@ curenv->page_last_WS_index = curenv->page_last_WS_index %  curenv->page_WS_max_s
 }
 }
 
-
+//-------------------------------------------------------------------------------------------------
 //Handle the page fault
 
 void page_fault_handler(struct Env * curenv, uint32 fault_va)
 {
-	 int wsSize = env_page_ws_get_size(curenv);
-	  int PageWsSize = curenv->page_WS_max_size ;
+  int wsSize = env_page_ws_get_size(curenv);
+  int PageWsSize = curenv->page_WS_max_size ;
 
-		//TODO: [PROJECT 2022 - [6] PAGE FAULT HANDLER]
-		// Write your code here, remove the panic and write your code
+	//TODO: [PROJECT 2022 - [6] PAGE FAULT HANDLER]
+	// Write your code here, remove the panic and write your code
 
 
-			if(wsSize<PageWsSize)
+		if(wsSize<PageWsSize)
+		{
+			struct Frame_Info *new_frame ;
+			int ret = allocate_frame(&new_frame);
+			if(ret!=E_NO_MEM)
 			{
-				struct Frame_Info *new_frame ;
-				int ret = allocate_frame(&new_frame);
-				if(ret!=E_NO_MEM)
-				{
-				  map_frame(curenv->env_page_directory ,new_frame ,(uint32*)fault_va,PERM_PRESENT |PERM_USER | PERM_WRITEABLE);
-				  ret = pf_read_env_page(curenv,(uint32 *)fault_va);
-				  if (ret == E_PAGE_NOT_EXIST_IN_PF) //if it's a stack page
+			  map_frame(curenv->env_page_directory ,new_frame ,(uint32*)fault_va,PERM_PRESENT |PERM_USER | PERM_WRITEABLE);
+			  ret = pf_read_env_page(curenv,(uint32 *)fault_va);
+			  if (ret == E_PAGE_NOT_EXIST_IN_PF) //if it's a stack page
+			  {
+				  if ( fault_va >= USTACKBOTTOM &&fault_va < USTACKTOP  )
 				  {
-					  if ( fault_va >= USTACKBOTTOM &&fault_va < USTACKTOP  )
-					  {
-				          pf_add_empty_env_page(curenv,fault_va,0);
-					  }
-					  else panic("invalid access %x",fault_va);
-
+			          pf_add_empty_env_page(curenv,fault_va,0);
 				  }
+				  else panic("invalid access %x",fault_va);
 
-				      for( int k =0 ; k<PageWsSize;k++)
-				      {
-					      if(curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].empty)
-						         break;
-						  else if(curenv->ptr_pageWorkingSet[k].empty)
-						  {
-							    curenv->page_last_WS_index = k ;
-								  break ;
-						  }
-				      }
-					  env_page_ws_set_entry(curenv,curenv->page_last_WS_index ,fault_va);
-					  curenv->page_last_WS_index ++ ;
-					  curenv->page_last_WS_index = curenv->page_last_WS_index %  curenv->page_WS_max_size ;
-				}
+			  }
+
+			      for( int k =0 ; k<PageWsSize;k++)
+			      {
+				      if(curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].empty)
+					         break;
+					  else if(curenv->ptr_pageWorkingSet[k].empty)
+					  {
+						    curenv->page_last_WS_index = k ;
+							  break ;
+					  }
+			      }
+				  env_page_ws_set_entry(curenv,curenv->page_last_WS_index ,fault_va);
+				  curenv->page_last_WS_index ++ ;
+				  curenv->page_last_WS_index = curenv->page_last_WS_index %  curenv->page_WS_max_size ;
 			}
-	else{
-		Repalacement__( curenv, fault_va);
-	}
-
+		}
+else{
+	Repalacement__( curenv, fault_va);
+}
 }
 
 

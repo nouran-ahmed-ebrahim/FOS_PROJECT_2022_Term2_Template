@@ -45,9 +45,8 @@ void* malloc(uint32 size)
 	pages = size/PAGE_SIZE;
 	bool once = 0;
 	//uint32* ptrCount = 0;
-	for(int i = lastAllocated; i<=num_of_pages;i++)
+	for(int i = lastAllocated; i < 131072;i++)
 	{
-
 		if(userHeap[i] != 0)
 		{
 			i+=userHeap[i]-1;
@@ -55,7 +54,7 @@ void* malloc(uint32 size)
 		}
 
 		int count = 0;
-		for(int j = i ; j < pages+i ; j++)
+		for(int j = i ; j < pages+i && j<131072 ; j++)
 		{
 
 			if(userHeap[j]== 0)
@@ -66,17 +65,19 @@ void* malloc(uint32 size)
 				break;
 			}
 		}
+
 		if(count == pages)
 		{
 			virtual_address = Get_add(i);
+			cprintf("%d %x\n",i, virtual_address);
 			sys_allocateMem((uint32)virtual_address, pages);
 			userHeap[i]=pages;
 			i+=pages;
 			lastAllocated = i;
 			break;
 		}
-		counter_of_userHeap+=i;
-		if((i == 131072) & (once == 0))
+
+		if((i == 131071) & (once == 0))
 		{
 			i = 0;
 			once = 1;
@@ -133,12 +134,16 @@ void free(void* virtual_address)
 {
 	//TODO: [PROJECT 2022 - [11] User Heap free()] [User Side]
 	// Write your code here, remove the panic and write your code
-	panic("free() is not implemented yet...!!");
+	//panic("free() is not implemented yet...!!");
 
 	//you shold get the size of the given allocation using its address
 	//you need to call sys_freeMem()
 	//refer to the project presentation and documentation for details
+	int idx = Get_Index(virtual_address);
+	int size = userHeap[idx];
 
+	userHeap[idx] = 0;
+	sys_freeMem((uint32)virtual_address,size);
 }
 
 

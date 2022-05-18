@@ -27,8 +27,8 @@ void _main(void)
 	}
 
 
-	
-	
+
+
 
 	int Mega = 1024*1024;
 	int kilo = 1024;
@@ -223,7 +223,8 @@ void _main(void)
 		usedDiskPages = sys_pf_calculate_allocated_pages() ;
 		free(ptr_allocations[1]);
 		if ((usedDiskPages - sys_pf_calculate_allocated_pages()) != 512) panic("Wrong free: Extra or less pages are removed from PageFile");
-		if ((sys_calculate_free_frames() - freeFrames) != 2 + 1) panic("Wrong free: WS pages in memory and/or page tables are not freed correctly");
+		cprintf("%d\n",(sys_calculate_free_frames() - freeFrames));
+				if ((sys_calculate_free_frames() - freeFrames) != 2 + 1) panic("Wrong free: WS pages in memory and/or page tables are not freed correctly");
 		for (var = 0; var < (myEnv->page_WS_max_size); ++var)
 		{
 			if(ROUNDDOWN(myEnv->__uptr_pws[var].virtual_address,PAGE_SIZE) == ROUNDDOWN((uint32)(&(shortArr[0])), PAGE_SIZE))

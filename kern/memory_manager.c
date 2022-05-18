@@ -765,12 +765,24 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 
 // [12] freeMem
 
+bool is_empty_pageTable(uint32 * pageTable)
+{
+	for(int i = 0 ; i<1024; i++)
+	{
+		if(pageTable[i] & PERM_PRESENT)
+		{
+			return 0;
+		}
+	}
+  return 1;
+}
+
 void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 {
 
 	//TODO: [PROJECT 2022 - [12] User Heap] freeMem() [Kernel Side]
 	// Write your code here, remove the panic and write your code
-	panic("freeMem() is not implemented yet...!!");
+	//panic("freeMem() is not implemented yet...!!");
 
 	//This function should:
 	//1. Free ALL pages of the given range from the Page File
@@ -778,6 +790,37 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 	//3. Removes ONLY the empty page tables (i.e. not used) (no pages are mapped in the table)
 	//   remember that the page table was created using kmalloc so it should be removed using kfree()
 
+	uint32 * pageTable = NULL;
+	int ret;
+    uint32 frame_vir_add, *vir_add, PF_vir_add;
+    vir_add = (void*)virtual_address;
+    PF_vir_add = virtual_address;
+     uint32 lastAdd = virtual_address + (size*PAGE_SIZE);
+
+	for(int  i = 0 ; i < e->page_WS_max_size ; i++)
+	    {
+		  frame_vir_add = env_page_ws_get_virtual_address(e,i);
+	    	if(frame_vir_add>= virtual_address && frame_vir_add < lastAdd )
+		    {
+	    		unmap_frame(e->env_page_directory,(void * )frame_vir_add);
+		    	env_page_ws_clear_entry(e,i);
+		    	 ret = get_page_table(e->env_page_directory,(void * )frame_vir_add, &pageTable);
+		    	   	       if(ret == TABLE_IN_MEMORY)
+		    	   	       {
+		    		         if(is_empty_pageTable(pageTable))
+		    	   	         {
+		    	   	        	 kfree(pageTable);
+		    	   	         }
+		    	   	       }
+		    }
+		}
+
+	for(int  i = 0 ; i < size ; i++, PF_vir_add+=PAGE_SIZE)
+	   {
+   	        pf_remove_env_page(e, PF_vir_add);
+	   }
+
+	tlbflush();
 }
 
 void __freeMem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size)
