@@ -98,8 +98,7 @@ void _main(void)
 
 	freeFrames = sys_calculate_free_frames() ;
 	usedDiskPages = sys_pf_calculate_allocated_pages();
-	void* tempAddress = malloc(Mega-kilo);
-	cprintf("%x \n",tempAddress);// Use Hole 1 -> Hole 1 = 1 M
+	void* tempAddress = malloc(Mega-kilo);// Use Hole 1 -> Hole 1 = 1 M
 	if((uint32)tempAddress != 0x80000000)
 		panic("Next Fit is not working correctly");
 	if( (sys_pf_calculate_allocated_pages() - usedDiskPages) !=  1*Mega/PAGE_SIZE) panic("Wrong page file allocation: ");

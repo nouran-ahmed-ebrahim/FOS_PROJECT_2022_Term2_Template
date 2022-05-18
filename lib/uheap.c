@@ -37,51 +37,44 @@ void* Get_add (int index)
 }
 void* malloc(uint32 size)
 {
-	void* virtual_address;
+	void* virtual_address = NULL;
 	int pages;
 	int count = 0;
 	int counter_of_userHeap = 0;
 	size = ROUNDUP(size,PAGE_SIZE);
 	pages = size/PAGE_SIZE;
 	bool once = 0;
-	//uint32* ptrCount = 0;
-	for(int i = lastAllocated; i < 131072;i++)
+
+	int i = lastAllocated;
+	if(lastAllocated == num_of_pages)
+		{
+		  once = 1;
+		  i = 0;
+		}
+
+	for( ; i < num_of_pages;i++)
 	{
 		if(userHeap[i] != 0)
 		{
 			i+=userHeap[i]-1;
+			count = 0;
 			continue;
 		}
-
-		int count = 0;
-		for(int j = i ; j < pages+i && j<131072 ; j++)
-		{
-
-			if(userHeap[j]== 0)
-			{
-				count++;
-			}else {
-				i+=userHeap[j]-1;
-				break;
-			}
-		}
-
+	   count++;
 		if(count == pages)
 		{
-			virtual_address = Get_add(i);
-			cprintf("%d %x\n",i, virtual_address);
+			virtual_address = Get_add(i - pages + 1);
 			sys_allocateMem((uint32)virtual_address, pages);
-			userHeap[i]=pages;
-			i+=pages;
-			lastAllocated = i;
+			userHeap[i - pages + 1 ]=pages;
+			lastAllocated = i + 1;
 			break;
 		}
 
 		if((i == 131071) & (once == 0))
 		{
-			i = 0;
+			count = 0;
+			i = -1;
 			once = 1;
-
 		}
 	}
 
