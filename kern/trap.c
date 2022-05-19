@@ -510,9 +510,9 @@ void placement(uint32 fault_va, uint32 entry_idx) {
 			}
 		}
 		fault_va = ROUNDDOWN(fault_va, PAGE_SIZE);
-					env_page_ws_set_entry(curenv, entry_idx, fault_va);
-					  curenv->page_last_WS_index= entry_idx +1 ;
-						  curenv->page_last_WS_index %= curenv->page_WS_max_size ;
+		env_page_ws_set_entry(curenv, entry_idx, fault_va);
+	    curenv->page_last_WS_index= entry_idx +1 ;
+		curenv->page_last_WS_index %= curenv->page_WS_max_size ;
 	}
 }
 
@@ -520,7 +520,7 @@ uint32 try1(uint32* entry_idx) {
 	uint32 start = curenv->page_last_WS_index;
 	uint32 num_of_pages = env_page_ws_get_size(curenv);
 
-	for (int i = start; i < num_of_pages; i++) {
+	for (int i = start; i < num_of_pages;) {
 		uint32 virtual_address = env_page_ws_get_virtual_address(curenv, i);
 		uint32 perms = pt_get_page_permissions(curenv, virtual_address);
 
@@ -528,12 +528,10 @@ uint32 try1(uint32* entry_idx) {
 			*(entry_idx) = i;
 			return virtual_address;
 		}
-
+        i++;
+        i%=num_of_pages;
 		if (i == start)
 			return -1;
-		if (i == num_of_pages - 1)
-			i = 0;
-
 	}
 	return -1;
 }
@@ -543,7 +541,7 @@ uint32 try2(uint32* entry_idx) {
 	uint32 start = curenv->page_last_WS_index;
 	uint32 num_of_pages = env_page_ws_get_size(curenv);
 
-	for (int i = start; i < num_of_pages; i++) {
+	for (int i = start; i < num_of_pages; ) {
 		uint32 virtual_address = env_page_ws_get_virtual_address(curenv, i);
 		uint32 perms = pt_get_page_permissions(curenv, virtual_address);
 
@@ -555,11 +553,10 @@ uint32 try2(uint32* entry_idx) {
 			//set perm used to 0
 			pt_set_page_permissions(curenv, virtual_address, 0, PERM_USED);
 		}
-
-		if (i == start)
-			return -1;
-		if (i == num_of_pages - 1)
-			i = 0;
+		  i++;
+		        i%=num_of_pages;
+				if (i == start)
+					return -1;
 	}
 
 	return -1;
