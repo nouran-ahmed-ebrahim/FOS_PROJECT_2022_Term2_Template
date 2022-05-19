@@ -12,10 +12,10 @@
 /* The kernel's interrupt descriptor table */
 extern struct Gatedesc idt[];
 
-extern uint8 bypassInstrLength ;
+extern uint8 bypassInstrLength;
 
-uint32 _EnableModifiedBuffer ;
-uint32 _EnableBuffering ;
+uint32 _EnableModifiedBuffer;
+uint32 _EnableBuffering;
 
 
 uint32 _PageRepAlgoType;
@@ -25,10 +25,10 @@ uint32 _PageRepAlgoType;
 #define PG_REP_MODIFIEDCLOCK  0x4
 
 void idt_init(void);
-void print_regs(struct PushRegs *regs);
-void print_trapframe(struct Trapframe *tf);
-void fault_handler(struct Trapframe *);
-void backtrace(struct Trapframe *);
+void print_regs(struct PushRegs* regs);
+void print_trapframe(struct Trapframe* tf);
+void fault_handler(struct Trapframe*);
+void backtrace(struct Trapframe*);
 
 void setPageReplacmentAlgorithmLRU();
 void setPageReplacmentAlgorithmCLOCK();
@@ -42,5 +42,9 @@ uint32 isPageReplacmentAlgorithmModifiedCLOCK();
 
 void enableModifiedBuffer(uint32 enableIt);
 uint32 isModifiedBufferEnabled();
+
+void placement(uint32 fault_va, uint32 entry_idx);
+uint32 try1(uint32* entry_idx);
+uint32 try2(uint32* entry_idx);
 
 #endif /* FOS_KERN_TRAP_H */

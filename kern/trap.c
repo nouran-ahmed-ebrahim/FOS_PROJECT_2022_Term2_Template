@@ -444,165 +444,129 @@ void table_fault_handler(struct Env * curenv, uint32 fault_va)
 	}
 
 }
-void Repalacement__(struct Env * curenv, uint32 fault_va){
-	int PageWsSize = curenv->page_WS_max_size ;
-	uint32 vict_va;
-	uint32 vict_idx;
-	if(isPageReplacmentAlgorithmModifiedCLOCK()){
-	int PageWsSize = curenv->page_WS_max_size ;
-
-	uint32 start= curenv->page_last_WS_index;
-			uint32 x=curenv->page_last_WS_index;
-			uint32 index= curenv->page_last_WS_index;
-
-			//try 1
-	        int found=1;
-	while(found==1){
-		  while(start!=PageWsSize){
-
-			uint32 Ws_Va =env_page_ws_get_virtual_address(curenv, start);
-			uint32 P= pt_get_page_permissions(curenv, Ws_Va);
-
-			if( ( (P &PERM_USED)==0)&&((P& PERM_MODIFIED) ==0)){
-				vict_idx=start;
-				vict_va=Ws_Va;
-			//unmap the page
-			found=0;
-			break;}
-	start=(start+1)%curenv->page_WS_max_size;
-	if(start==index)
-		break;
-			     }
-		  if (found==0)
-			  break;
-
-	//try 2
-	while(x!=PageWsSize)	{
-
-		uint32 Ws_Va =env_page_ws_get_virtual_address(curenv, x);
-		uint32 P= pt_get_page_permissions(curenv, Ws_Va);
-		if((P &PERM_USED)==0){
-					vict_idx=x;
-					vict_va=Ws_Va;
 
 
-				//unmap the page
-
-				found=0;
-
-				break;}
-		pt_set_page_permissions(curenv,Ws_Va,0,PERM_USED);
-		x=(x+1)%curenv->page_WS_max_size;
-		if(x==index)
-			break;
-
-	}
-if(found==0)
-	break;
-	}
-	}
-	//check for modified bit and update in page file
-	uint32 Per= pt_get_page_permissions(curenv, vict_va);
-	if((Per&PERM_MODIFIED)==PERM_MODIFIED){
-
-	uint32 * _page_table=NULL;
-	struct Frame_Info *_frame_info=get_frame_info(curenv->env_page_directory,(void*)vict_va,&_page_table);
-	int result = pf_update_env_page(curenv,(uint32*)vict_va,_frame_info);
-	unmap_frame(curenv->env_page_directory,(uint32*)vict_va);
-    env_page_ws_invalidate(curenv, vict_va);
-	}else{
-		unmap_frame(curenv->env_page_directory,(uint32*)vict_va);
-		env_page_ws_invalidate(curenv, vict_va);
-	}
-
-
-	//victim is selected_________________________
-struct Frame_Info *new_frame ;
-int ret = allocate_frame(&new_frame);
-if(ret!=E_NO_MEM)
-{
- map_frame(curenv->env_page_directory ,new_frame ,(uint32*)fault_va,PERM_PRESENT |PERM_USER | PERM_WRITEABLE);
- ret = pf_read_env_page(curenv,(uint32 *)fault_va);
- if (ret == E_PAGE_NOT_EXIST_IN_PF) //if it's a stack page
-	 {
- if ( fault_va >= USTACKBOTTOM &&fault_va < USTACKTOP  )
- {
- pf_add_empty_env_page(curenv,fault_va,0);
- }
- else panic("invalid_access ");
-}
-
- for( int k =0 ; k<PageWsSize;k++)
- {
-     if(curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].empty)
-	         break;
-	  else if(curenv->ptr_pageWorkingSet[k].empty)
-	  {
-		    curenv->page_last_WS_index = k ;
-			  break ;
-	  }
- }
- env_page_ws_set_entry(curenv,curenv->page_last_WS_index ,fault_va);
-curenv->page_last_WS_index ++ ;
-curenv->page_last_WS_index = curenv->page_last_WS_index %  curenv->page_WS_max_size ;
-}
-}
-
-//-------------------------------------------------------------------------------------------------
 //Handle the page fault
 
 void page_fault_handler(struct Env * curenv, uint32 fault_va)
 {
-  int wsSize = env_page_ws_get_size(curenv);
-  int PageWsSize = curenv->page_WS_max_size ;
+	struct Frame_Info * frame_info;
+	uint32 virtual_address;
+	uint32 entry_idx = 0;
+	if (curenv->page_WS_max_size > env_page_ws_get_size(curenv)) {
+		placement(fault_va, env_page_ws_get_size(curenv));
+	}
 
-	//TODO: [PROJECT 2022 - [6] PAGE FAULT HANDLER]
-	// Write your code here, remove the panic and write your code
+	else {
+		if (isPageReplacmentAlgorithmModifiedCLOCK()) {
+			virtual_address = try1(&entry_idx);
 
+			if (virtual_address == -1) {
+				virtual_address = try2(&entry_idx);
+				if (virtual_address == -1)
+				{
+					virtual_address = try1(&entry_idx);
+					if (virtual_address == -1)
+						virtual_address = try2(&entry_idx);
+				}
+			}
 
-		if(wsSize<PageWsSize)
-		{
-			struct Frame_Info *new_frame ;
-			int ret = allocate_frame(&new_frame);
-			if(ret!=E_NO_MEM)
+		}
+		uint32 perms = pt_get_page_permissions(curenv,virtual_address);
+		if ((perms & PERM_MODIFIED) == 0){
+			unmap_frame(curenv->env_page_directory,(void *) virtual_address);
+		}
+		else{
+			uint32 * page_table = NULL;
+		    frame_info = get_frame_info(curenv->env_page_directory,(void *) virtual_address, &page_table);
+			pf_update_env_page(curenv, (void *)virtual_address, frame_info);
+
+			 unmap_frame(curenv->env_page_directory,(void *) virtual_address);
+		}
+
+		placement(fault_va , entry_idx);
+
+	}
+}
+
+void placement(uint32 fault_va, uint32 entry_idx) {
+
+	struct Frame_Info *frame_info;
+	int ret = allocate_frame(&frame_info);
+
+	if (ret != E_NO_MEM){
+
+        map_frame(curenv->env_page_directory, frame_info,(void *) fault_va, PERM_PRESENT | PERM_USER | PERM_WRITEABLE);
+
+		int ret = pf_read_env_page(curenv,(void *) fault_va);
+		if (ret == E_PAGE_NOT_EXIST_IN_PF){
+
+			if (fault_va >= USTACKBOTTOM && fault_va <= USTACKTOP){
+				int ret = pf_add_empty_env_page(curenv, fault_va,0);
+			}
+			else
 			{
-			  map_frame(curenv->env_page_directory ,new_frame ,(uint32*)fault_va,PERM_PRESENT |PERM_USER | PERM_WRITEABLE);
-			  ret = pf_read_env_page(curenv,(uint32 *)fault_va);
-			  if (ret == E_PAGE_NOT_EXIST_IN_PF) //if it's a stack page
-			  {
-				  if ( fault_va >= USTACKBOTTOM &&fault_va < USTACKTOP  )
-				  {
-			          pf_add_empty_env_page(curenv,fault_va,0);
-				  }
-				  else panic("invalid access %x",fault_va);
-
-			  }
-
-			      for( int k =0 ; k<PageWsSize;k++)
-			      {
-				      if(curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].empty)
-					         break;
-					  else if(curenv->ptr_pageWorkingSet[k].empty)
-					  {
-						    curenv->page_last_WS_index = k ;
-							  break ;
-					  }
-			      }
-				  env_page_ws_set_entry(curenv,curenv->page_last_WS_index ,fault_va);
-				  curenv->page_last_WS_index ++ ;
-				  curenv->page_last_WS_index = curenv->page_last_WS_index %  curenv->page_WS_max_size ;
+				panic("invalid access at %x\n",fault_va);
 			}
 		}
-else{
-	Repalacement__( curenv, fault_va);
-}
+		fault_va = ROUNDDOWN(fault_va, PAGE_SIZE);
+					env_page_ws_set_entry(curenv, entry_idx, fault_va);
+					  curenv->page_last_WS_index= entry_idx +1 ;
+						  curenv->page_last_WS_index %= curenv->page_WS_max_size ;
+	}
 }
 
+uint32 try1(uint32* entry_idx) {
+	uint32 start = curenv->page_last_WS_index;
+	uint32 num_of_pages = env_page_ws_get_size(curenv);
 
+	for (int i = start; i < num_of_pages; i++) {
+		uint32 virtual_address = env_page_ws_get_virtual_address(curenv, i);
+		uint32 perms = pt_get_page_permissions(curenv, virtual_address);
+
+		if (((perms & PERM_USED) == 0) && ((perms & PERM_MODIFIED) == 0)) {
+			*(entry_idx) = i;
+			return virtual_address;
+		}
+
+		if (i == start)
+			return -1;
+		if (i == num_of_pages - 1)
+			i = 0;
+
+	}
+	return -1;
+}
+
+uint32 try2(uint32* entry_idx) {
+
+	uint32 start = curenv->page_last_WS_index;
+	uint32 num_of_pages = env_page_ws_get_size(curenv);
+
+	for (int i = start; i < num_of_pages; i++) {
+		uint32 virtual_address = env_page_ws_get_virtual_address(curenv, i);
+		uint32 perms = pt_get_page_permissions(curenv, virtual_address);
+
+		if ((perms & PERM_USED) == 0) {
+			*(entry_idx) = i;
+			return virtual_address;
+		}
+		else {
+			//set perm used to 0
+			pt_set_page_permissions(curenv, virtual_address, 0, PERM_USED);
+		}
+
+		if (i == start)
+			return -1;
+		if (i == num_of_pages - 1)
+			i = 0;
+	}
+
+	return -1;
+}
 void __page_fault_handler_with_buffering(struct Env * curenv, uint32 fault_va)
 {
 	// your code is here, remove the panic and write your code
 	panic("this function is not required...!!");
 
 }
-

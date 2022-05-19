@@ -104,3 +104,4 @@ obj/user/tst_free_3
 obj/user/tst_free_2
 obj/user/tst_freeHeap_2
 obj/user/tst_malloc
+obj/kern/kernel
