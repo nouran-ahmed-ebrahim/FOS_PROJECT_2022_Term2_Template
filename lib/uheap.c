@@ -21,6 +21,7 @@
 int num_of_pages = (USER_HEAP_MAX-USER_HEAP_START)/PAGE_SIZE;
 int userHeap[131072];
 int lastAllocated = 0;
+bool allocate = 1;
 
 int Get_Index(void* Address)
 {
@@ -54,17 +55,27 @@ void* malloc(uint32 size)
 
 	for( ; i < num_of_pages;i++)
 	{
+
 		if(userHeap[i] != 0)
 		{
 			i+=userHeap[i]-1;
 			count = 0;
+			if((i == 131071) & (once == 0))
+			   {
+					i = -1;
+					once = 1;
+				}
 			continue;
 		}
 	   count++;
-		if(count == pages)
+
+	   if(count == pages)
 		{
 			virtual_address = Get_add(i - pages + 1);
-			sys_allocateMem((uint32)virtual_address, pages);
+		if(allocate == 1)
+			{
+			  sys_allocateMem((uint32)virtual_address, pages);
+			}
 			userHeap[i - pages + 1 ]=pages;
 			lastAllocated = i + 1;
 			break;
@@ -165,9 +176,62 @@ void sfree(void* virtual_address)
 
 void *realloc(void *virtual_address, uint32 new_size)
 {
+	//cprintf("%x ",virtual_address);
 	//TODO: [PROJECT 2022 - BONUS3] User Heap Realloc [User Side]
 	// Write your code here, remove the panic and write your code
-	panic("realloc() is not implemented yet...!!");
+	//panic("realloc() is not implemented yet...!!");
 
-	return NULL;
+
+	if(virtual_address == NULL)
+	{
+		//cprintf("\n 1 \n");
+		return malloc(new_size);
+	}
+	if(new_size == 0)
+	{
+		//cprintf(" a \n");
+		free(virtual_address);
+		return NULL;
+	}
+
+	new_size = ROUNDUP(new_size,PAGE_SIZE);
+	uint32 new_pages = new_size/PAGE_SIZE;
+	int idx = Get_Index(virtual_address);
+	int old_pages = userHeap[idx];
+	if(new_pages == old_pages)
+	{
+		//cprintf(" b \n");
+		return virtual_address;
+	}
+
+	void* new_virtual ;
+	int dif_pages = new_pages - old_pages ;
+	int new_idx = old_pages + idx;
+	for(int i = new_idx ; i < dif_pages + new_idx ; i++)
+	{
+		if( i >= num_of_pages || userHeap[i] !=0)
+		{
+			allocate = 0;
+			new_virtual = malloc(new_size);
+			allocate = 1;
+			if( new_virtual !=NULL)
+			{
+				sys_moveMem((uint32)(virtual_address), (uint32)(new_virtual),old_pages);
+				sys_allocateMem((uint32)(new_virtual + (old_pages *PAGE_SIZE)),dif_pages );
+				//cprintf(" 2 \n");
+				free(virtual_address);
+				return new_virtual;
+			}
+			else
+			{
+				//cprintf(" 3 \n");
+				return NULL;
+		     }
+		}
+	}
+	//cprintf(" 4 \n");
+	sys_allocateMem((uint32)(virtual_address + (old_pages *PAGE_SIZE)), dif_pages);
+	userHeap[idx] = new_pages;
+	lastAllocated = Get_Index(virtual_address+(new_pages *PAGE_SIZE)) ;
+	return virtual_address;
 }

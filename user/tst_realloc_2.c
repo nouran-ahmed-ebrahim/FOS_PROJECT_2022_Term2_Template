@@ -333,6 +333,7 @@ void _main(void)
 		//Take 2 MB from currently 3 MB hole at beginning of the heap
 		freeFrames = sys_calculate_free_frames() ;
 		usedDiskPages = sys_pf_calculate_allocated_pages() ;
+
 		ptr_allocations[10] = malloc(2*Mega-kilo);
 		if ((uint32) ptr_allocations[10] != (USER_HEAP_START)) panic("Wrong start address for the allocated space... ");
 		//if ((freeFrames - sys_calculate_free_frames()) != 512 ) panic("Wrong allocation: ");

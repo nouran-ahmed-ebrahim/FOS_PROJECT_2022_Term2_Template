@@ -46,7 +46,8 @@ void _main(void)
 		int *Elements = malloc(sizeof(int) * NumOfElements) ;
 
 		int numOFEmptyLocInWS = CheckAndCountEmptyLocInWS(myEnv);
-		int InitFreeFrames = sys_calculate_free_frames() + sys_calculate_modified_frames() - numOFEmptyLocInWS ;
+
+        int InitFreeFrames = sys_calculate_free_frames() + sys_calculate_modified_frames() - numOFEmptyLocInWS ;
 
 		Elements[NumOfElements] = 10 ;
 		//		cprintf("Free Frames After Allocation = %d\n", sys_calculate_free_frames()) ;

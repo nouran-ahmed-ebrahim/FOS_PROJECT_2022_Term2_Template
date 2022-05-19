@@ -105,3 +105,14 @@ obj/user/tst_free_2
 obj/user/tst_freeHeap_2
 obj/user/tst_malloc
 obj/kern/kernel
+obj/user/quicksort1
+obj/user/mergesort_noleakage
+obj/user/mergesort_noleakage
+obj/user/mergesort_leakage
+obj/user/fos_alloc
+obj/user/ef_mergesort_noleakage
+obj/user/arrayOperations_stats
+obj/user/ef_mergesort_leakage
+obj/user/arrayOperations_quicksort
+obj/user/arrayOperations_mergesort
+obj/kern/kernel

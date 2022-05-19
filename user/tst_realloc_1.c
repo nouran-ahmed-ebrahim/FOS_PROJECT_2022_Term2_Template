@@ -343,7 +343,6 @@ void _main(void)
 			intArr[i] = i ;
 		}
 
-
 		//Reallocate it to 4 MB [should be moved to last hole]
 		freeFrames = sys_calculate_free_frames() ;
 		usedDiskPages = sys_pf_calculate_allocated_pages() ;

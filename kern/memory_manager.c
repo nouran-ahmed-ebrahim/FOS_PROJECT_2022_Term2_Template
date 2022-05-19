@@ -843,12 +843,32 @@ void moveMem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_addre
 {
 	//TODO: [PROJECT 2022 - BONUS3] User Heap Realloc [Kernel Side]
 	//your code is here, remove the panic and write your code
-	panic("moveMem() is not implemented yet...!!");
-
+	//panic("moveMem() is not implemented yet...!!");
 	// This function should move all pages from "src_virtual_address" to "dst_virtual_address"
 	// with the given size
 	// After finishing, the src_virtual_address must no longer be accessed/exist in either page file
 	// or main memory
+
+	int check;
+	uint32 * page;
+	struct Frame_Info *ptr_frame_info ;
+	for(int i = 0 ; i< size;i++)
+		{
+		//cprintf("\n %d %d \n",i,size);
+		   ptr_frame_info = get_frame_info(e->env_page_directory,(void*)src_virtual_address,&page);
+		   check = pf_add_empty_env_page(e,dst_virtual_address,1);
+		   if(check == E_NO_PAGE_FILE_SPACE)
+		   {
+			   panic("There is NO SPACE in PAGE FILE");
+		   }
+		   if(ptr_frame_info !=NULL)
+		   {
+		     pf_update_env_page(e,(void*)dst_virtual_address,ptr_frame_info);
+		   }
+
+			src_virtual_address+=PAGE_SIZE;
+			dst_virtual_address+=PAGE_SIZE;
+		}
 }
 
 //==================================================================================================
