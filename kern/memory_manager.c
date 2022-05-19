@@ -748,6 +748,7 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	//This function should allocate ALL pages of the required range in the PAGE FILE
 	//and allocate NOTHING in the main memory
+	virtual_address = ROUNDDOWN(virtual_address,PAGE_SIZE);
 	for(int i = 0 ; i< size;i++)
 	{
 		check = pf_add_empty_env_page(e,virtual_address,1);
@@ -755,6 +756,7 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 		{
 			panic("There is NO SPACE in PAGE FILE");
 		}
+
 		virtual_address+=PAGE_SIZE;
 	}
 
@@ -788,6 +790,8 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 	//3. Removes ONLY the empty page tables (i.e. not used) (no pages are mapped in the table)
 	//   remember that the page table was created using kmalloc so it should be removed using kfree()
 
+
+	virtual_address = ROUNDDOWN(virtual_address,PAGE_SIZE);
 	uint32 * pageTable = NULL;
 	int ret;
     uint32 frame_vir_add, *vir_add, PF_vir_add;
@@ -808,6 +812,7 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 		    		         if(is_empty_pageTable(pageTable))
 		    	   	         {
 		    	   	        	 kfree(pageTable);
+		    	   	        	 pd_clear_page_dir_entry(e,(uint32)frame_vir_add);
 		    	   	         }
 		    	   	       }
 		    }

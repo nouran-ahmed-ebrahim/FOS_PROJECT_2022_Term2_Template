@@ -363,8 +363,11 @@ void _main(void)
 
 		i = 0;
 		//filling the first 100 elements of the last 3 mega
+
+
 		for (i=0; i < 100 ; i++)
 		{
+
 			intArr[i] = i ;
 		}
 
