@@ -116,3 +116,8 @@ obj/user/ef_mergesort_leakage
 obj/user/arrayOperations_quicksort
 obj/user/arrayOperations_mergesort
 obj/kern/kernel
+obj/user/tst_quicksort_freeHeap
+obj/kern/kernel
+user/tst_quicksort_freeHeap.c
+obj/user/tst_quicksort_freeHeap
+obj/kern/kernel

@@ -820,7 +820,7 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	for(int  i = 0 ; i < size ; i++, PF_vir_add+=PAGE_SIZE)
 	   {
-   	        pf_remove_env_page(e, PF_vir_add);
+	      pf_remove_env_page(e, PF_vir_add);
 	   }
 
 	tlbflush();
