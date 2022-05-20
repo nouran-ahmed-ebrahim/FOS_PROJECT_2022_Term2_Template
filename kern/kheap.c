@@ -182,7 +182,7 @@ void* kmalloc(unsigned int size)
 	    void *allocationAdd = NULL ;
 		int allocationIdx;
 
-		//cprintf("%d\n",size);
+
 		if(isKHeapPlacementStrategyNEXTFIT())
 		{
 		  allocationAdd = findSuitableEmptyBlockNextFit(lastAllocated, numOfPages);
@@ -226,6 +226,7 @@ void kfree(void* virtual_address)
 	   {
 		   unmap_frame(ptr_page_directory,virtual_address);
 	   }
+	   userAllocations[allocationIdx] = 0;
 }
 
 unsigned int kheap_virtual_address(unsigned int physical_address)

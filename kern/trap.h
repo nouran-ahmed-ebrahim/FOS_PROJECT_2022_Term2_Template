@@ -39,6 +39,7 @@ uint32 isPageReplacmentAlgorithmLRU();
 uint32 isPageReplacmentAlgorithmCLOCK();
 uint32 isPageReplacmentAlgorithmFIFO();
 uint32 isPageReplacmentAlgorithmModifiedCLOCK();
+uint32 findEmptyEntryIdx();
 
 void enableModifiedBuffer(uint32 enableIt);
 uint32 isModifiedBufferEnabled();

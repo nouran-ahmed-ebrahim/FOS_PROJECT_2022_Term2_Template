@@ -452,15 +452,15 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va)
 {
 	struct Frame_Info * frame_info;
 	uint32 virtual_address;
-	uint32 entry_idx = 0;
+	uint32 entry_idx ;
 	if (curenv->page_WS_max_size > env_page_ws_get_size(curenv)) {
-		placement(fault_va, env_page_ws_get_size(curenv));
+
+		placement(fault_va, findEmptyEntryIdx());
 	}
 
 	else {
 		if (isPageReplacmentAlgorithmModifiedCLOCK()) {
 			virtual_address = try1(&entry_idx);
-
 			if (virtual_address == -1) {
 				virtual_address = try2(&entry_idx);
 				if (virtual_address == -1)
@@ -475,6 +475,8 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va)
 		uint32 perms = pt_get_page_permissions(curenv,virtual_address);
 		if ((perms & PERM_MODIFIED) == 0){
 			unmap_frame(curenv->env_page_directory,(void *) virtual_address);
+		//change
+			env_page_ws_invalidate(curenv, virtual_address);
 		}
 		else{
 			uint32 * page_table = NULL;
@@ -482,6 +484,8 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va)
 			pf_update_env_page(curenv, (void *)virtual_address, frame_info);
 
 			 unmap_frame(curenv->env_page_directory,(void *) virtual_address);
+			 //change
+			 env_page_ws_invalidate(curenv, virtual_address);
 		}
 
 		placement(fault_va , entry_idx);
@@ -501,7 +505,8 @@ void placement(uint32 fault_va, uint32 entry_idx) {
 		int ret = pf_read_env_page(curenv,(void *) fault_va);
 		if (ret == E_PAGE_NOT_EXIST_IN_PF){
 
-			if (fault_va >= USTACKBOTTOM && fault_va <= USTACKTOP){
+			//change
+			if (fault_va >= USTACKBOTTOM && fault_va < USTACKTOP){
 				int ret = pf_add_empty_env_page(curenv, fault_va,0);
 			}
 			else
@@ -509,11 +514,29 @@ void placement(uint32 fault_va, uint32 entry_idx) {
 				panic("invalid access at %x\n",fault_va);
 			}
 		}
-		fault_va = ROUNDDOWN(fault_va, PAGE_SIZE);
+		//change
+		//fault_va = ROUNDDOWN(fault_va, PAGE_SIZE);
+
 		env_page_ws_set_entry(curenv, entry_idx, fault_va);
-	    curenv->page_last_WS_index= entry_idx +1 ;
+	    curenv->page_last_WS_index= entry_idx + 1 ;
 		curenv->page_last_WS_index %= curenv->page_WS_max_size ;
+
 	}
+}
+
+uint32 findEmptyEntryIdx()
+{
+	if(curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].empty)
+	     return curenv->page_last_WS_index;
+
+	for( int k =0 ; k<curenv->page_WS_max_size;k++)
+	    {
+		  if(curenv->ptr_pageWorkingSet[k].empty)
+		  {
+			  return k;
+		  }
+	   }
+	return 0;
 }
 
 uint32 try1(uint32* entry_idx) {
@@ -526,7 +549,7 @@ uint32 try1(uint32* entry_idx) {
 
 		if (((perms & PERM_USED) == 0) && ((perms & PERM_MODIFIED) == 0)) {
 			*(entry_idx) = i;
-			return virtual_address;
+    	    return virtual_address;
 		}
         i++;
         i%=num_of_pages;
